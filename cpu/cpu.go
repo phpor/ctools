@@ -11,15 +11,33 @@ import (
 	"github.com/phpor/ctools/utils"
 	"io/ioutil"
 	"time"
+	"github.com/davecgh/go-spew/spew"
+	"os"
 )
 
 const  UNLIMITTED  = 9223372036854771712
 
 
+var lastCpuState *CpuStat
 var cpu_tick = uint64(100)
 const nanoSecondsPerSecond = 1e9
 
 
+type CpuStat struct {
+	Total uint64
+	Usage uint64
+	Usage_user uint64
+	Usage_system uint64
+	Cpu_num float64
+	Restricted_cpu_num float64
+
+}
+
+func debug(val ...interface{}) {
+ 	if os.Getenv("debug_ctools") == "on" {
+ 		spew.Dump(val...)
+	}
+}
 func init() {
 	getconf, err := exec.LookPath("getconf")
 	if err != nil {
@@ -41,53 +59,54 @@ func init() {
 }
 
 
-func getCgroupCpuUsage() (map[string]uint64, error){
+func getCgroupCpuUsage() (*CpuStat, error){
 
 	cgroup_cpu_dir := utils.GetCgroupDir("cpu")
-	cpustat := map[string]uint64{}
-	cpustat["total"], _ = getSystemCPUUsage()
+	cpustat := &CpuStat{}
+	cpustat.Total, _ = getSystemCPUUsage()
 
 	var err error
-	var quota_us = ""
+	var quota_us float64
+	var period_us uint64
 	if _quota_us, err := ioutil.ReadFile(cgroup_cpu_dir + "/cpu.cfs_quota_us"); err != nil {
 		return nil, err
 	} else {
-		quota_us = strings.Trim(string(_quota_us), "\n")
+		quota_us,err = strconv.ParseFloat(strings.Trim(string(_quota_us), "\n"), 64)
 	}
 
-	if cpustat["period_us"],err = utils.ReadUint64(cgroup_cpu_dir + "/cpu.cfs_period_us");err != nil {
+	if period_us,err = utils.ReadUint64(cgroup_cpu_dir + "/cpu.cfs_period_us");err != nil {
 		return nil, err
 	}
 
 	cgroup_cpuacct_dir := utils.GetCgroupDir("cpuacct")
 
 
-	if cpustat["total_usage"],err = utils.ReadUint64(cgroup_cpuacct_dir + "/cpuacct.usage");err != nil {
+	if cpustat.Usage,err = utils.ReadUint64(cgroup_cpuacct_dir + "/cpuacct.usage");err != nil {
 		return nil, err
 	}
 
+	var cpu_num float64
 	if usage_percpu, err := ioutil.ReadFile(cgroup_cpuacct_dir + "/cpuacct.usage_percpu"); err != nil {
 		return nil, err
 	} else {
-		cpustat["cpu_num"] = uint64(len(strings.Split(strings.Trim(string(usage_percpu), "\n "), " ")))
+		cpu_num = float64(len(strings.Split(strings.Trim(string(usage_percpu), "\n "), " ")))
 	}
 
-	cpu_num := cpustat["cpu_num"]
-
-	if quota_us == "-1" {
-		cpustat["restricted_cpu_num"] = cpu_num
+	cpustat.Cpu_num = cpu_num
+	if quota_us == -1 {
+		cpustat.Restricted_cpu_num = cpu_num
 	} else {
-		cpustat["restricted_cpu_num"] = cpustat["quota_us"] / cpustat["period_us"]
+		cpustat.Restricted_cpu_num = quota_us / float64(period_us)
 
 	}
 
 	utils.ForEachFile(cgroup_cpuacct_dir + "/cpuacct.stat", func(line string)(bool, error) {
 		arr := strings.Split(line, " ")
 		if arr[0] == "user" {
-			cpustat["usage_user"],_ = strconv.ParseUint(arr[1], 10, 64)
+			cpustat.Usage_user,_ = strconv.ParseUint(arr[1], 10, 64)
 		} else
 		if arr[0] == "system" {
-			cpustat["usage_system"],_ = strconv.ParseUint(arr[1], 10, 64)
+			cpustat.Usage_system,_ = strconv.ParseUint(arr[1], 10, 64)
 		}
 		return true, nil
 	})
@@ -129,9 +148,31 @@ func GetCpuUsage() float64 {
 	}
 	time.Sleep(time.Millisecond * 100)
 	nextCpuState, _ := getCgroupCpuUsage()
-	//spew.Dump(preCpuState)
-	//spew.Dump(nextCpuState)
-	totalUsage := nextCpuState["total_usage"] - preCpuState["total_usage"]
-	totalCpu := nextCpuState["total"] - preCpuState["total"]
-	return float64(totalUsage)/float64(totalCpu)*float64(nextCpuState["cpu_num"])/float64(nextCpuState["restricted_cpu_num"])
+	debug(preCpuState)
+	debug(nextCpuState)
+	totalUsage := nextCpuState.Usage - preCpuState.Usage
+	total := nextCpuState.Total - preCpuState.Total
+	debug(fmt.Sprintf("%d/((%d/%f)*%f)",totalUsage, total, nextCpuState.Cpu_num, nextCpuState.Restricted_cpu_num))
+	return float64(totalUsage)/((float64(total)/nextCpuState.Cpu_num)*float64(nextCpuState.Restricted_cpu_num))
+}
+
+func GetCpuUsageNoDelay() float64 {
+	if lastCpuState == nil {
+		var err error
+		lastCpuState, err = getCgroupCpuUsage()
+		if err != nil {
+			panic(err)
+		}
+		time.Sleep(time.Millisecond * 500)
+
+	}
+	preCpuState := lastCpuState
+	nextCpuState, _ := getCgroupCpuUsage()
+	lastCpuState = nextCpuState
+	debug(preCpuState)
+	debug(nextCpuState)
+	totalUsage := nextCpuState.Usage - preCpuState.Usage
+	total := nextCpuState.Total - preCpuState.Total
+	debug(fmt.Sprintf("%d/((%d/%f)*%f)",totalUsage, total, nextCpuState.Cpu_num, nextCpuState.Restricted_cpu_num))
+	return float64(totalUsage)/((float64(total)/nextCpuState.Cpu_num)*float64(nextCpuState.Restricted_cpu_num))
 }

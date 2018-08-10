@@ -33,7 +33,7 @@ func mainUI() {
 	g := ui.NewGauge()
 	g.X = 40
 	g.Y = 1
-	g.Percent = int(cpu.GetCpuUsage() * 100)
+	g.Percent = int(cpu.GetCpuUsageNoDelay() * 100)
 	g.Label = "Gauge CPU"
 
 	go func() {

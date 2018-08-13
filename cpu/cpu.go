@@ -11,8 +11,7 @@ import (
 	"github.com/phpor/ctools/utils"
 	"io/ioutil"
 	"time"
-	"github.com/davecgh/go-spew/spew"
-	"os"
+
 )
 
 
@@ -30,11 +29,7 @@ type CpuStat struct {
 
 }
 
-func debug(val ...interface{}) {
- 	if os.Getenv("debug_ctools") == "on" {
- 		spew.Dump(val...)
-	}
-}
+
 func init() {
 	getconf, err := exec.LookPath("getconf")
 	if err != nil {
@@ -167,8 +162,8 @@ func GetCpuUsage() float64 {
 	}
 	time.Sleep(time.Millisecond * 100)
 	nextCpuState, _ := getCgroupCpuUsage()
-	debug(preCpuState)
-	debug(nextCpuState)
+	utils.Debug(preCpuState)
+	utils.Debug(nextCpuState)
 	totalUsage := nextCpuState.Usage - preCpuState.Usage
 	total := nextCpuState.Total - preCpuState.Total
 	return float64(totalUsage)/((float64(total)/cpuAll) * cpuNum)
@@ -190,8 +185,8 @@ func GetCpuUsageNoDelay() float64 {
 	preCpuState := lastCpuState
 	nextCpuState, _ := getCgroupCpuUsage()
 	lastCpuState = nextCpuState
-	debug(preCpuState)
-	debug(nextCpuState)
+	utils.Debug(preCpuState)
+	utils.Debug(nextCpuState)
 	totalUsage := nextCpuState.Usage - preCpuState.Usage
 	total := nextCpuState.Total - preCpuState.Total
 	return float64(totalUsage)/((float64(total)/cpuAll) * cpuNum)

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"io/ioutil"
 	"strings"
+	"io"
 )
 
 
@@ -51,5 +52,8 @@ func ForEachFile(filename string, fn func(line string) (bool, error)) error{
 		}
 	}
 
+	if err == io.EOF {
+		return nil
+	}
 	return err
 }

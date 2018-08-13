@@ -15,7 +15,6 @@ import (
 	"os"
 )
 
-const  UNLIMITTED  = 9223372036854771712
 
 
 var lastCpuState *CpuStat
@@ -115,6 +114,7 @@ func getCgroupCpuUsage() (*CpuStat, error){
 }
 
 
+// getSystemCPUUsage collect the total cpu resource of all cpu core
 func getSystemCPUUsage() (uint64, error) {
 	totalCpu := uint64(0)
 	err := utils.ForEachFile("/proc/stat", func(line string)(bool, error){

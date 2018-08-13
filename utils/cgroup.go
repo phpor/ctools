@@ -5,6 +5,7 @@ import "strings"
 
 
 
+const  UNLIMITTED  = 9223372036854771712
 var cgroup_dir = "/sys/fs/cgroup"
 
 

@@ -6,6 +6,8 @@ import (
 	"github.com/phpor/ctools/cpu"
 	"os"
 	"github.com/davecgh/go-spew/spew"
+	"fmt"
+	"github.com/phpor/ctools/mem"
 )
 func main() {
 	spew.Dump(os.Args)
@@ -19,7 +21,12 @@ func main() {
 }
 
 func mainPlay()  {
-	cpu.GetCpuUsage()
+	fmt.Printf("CpuUsage: %f%%\n", cpu.GetCpuUsage()*100)
+	memstat,err := mem.Usage()
+	if err != nil {
+		spew.Dump(err. Error())
+	}
+	spew.Dump(memstat)
 }
 
 func mainUI() {

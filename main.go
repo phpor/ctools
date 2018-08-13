@@ -49,7 +49,7 @@ func mainUI() {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		for range ticker.C {
-			g.Percent = int(cpu.GetCpuUsage() * 100)
+			g.Percent = int(cpu.GetCpuUsageNoDelay() * 100)
 			ui.Render(g)
 		}
 	}()

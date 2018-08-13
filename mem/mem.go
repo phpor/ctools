@@ -4,6 +4,7 @@ import (
 	"github.com/phpor/ctools/utils"
 	"strings"
 	"strconv"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type MemStat struct {
@@ -32,7 +33,7 @@ func Usage() (*MemStat, error) {
 	mem_free := uint64(0)
 	mem_available := uint64(0)
 	if mem_total == utils.UNLIMITTED {
-		sys_memstat,err := getSystemMemStat()
+		sys_memstat,err := GetSystemMemStat()
 		if err != nil {
 			panic(err)
 		}
@@ -63,10 +64,11 @@ func Usage() (*MemStat, error) {
 }
 
 
-func getSystemMemStat() (*sysMemStat, error) {
+func GetSystemMemStat() (*sysMemStat, error) {
 	memstat := &sysMemStat{}
 	err := utils.ForEachFile("/proc/meminfo", func(line string)(bool, error){
-		arr := strings.Split(line, " ")
+		arr := strings.Fields(line)
+		spew.Dump(arr)
 		switch arr[0] {
 		case "MemTotal:":
 			val,_ := strconv.ParseUint(arr[1], 10, 64)

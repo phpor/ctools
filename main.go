@@ -27,6 +27,9 @@ func mainPlay()  {
 		spew.Dump(err. Error())
 	}
 	spew.Dump(memstat)
+
+	sysMemStat, _ := mem.GetSystemMemStat()
+	spew.Dump(sysMemStat)
 }
 
 func mainUI() {

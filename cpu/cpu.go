@@ -134,10 +134,10 @@ func CountLimitedCPU() (float64, error) {
 	var err error
 	var quota_us float64
 	var period_us uint64
-	if _quota_us, err := ioutil.ReadFile(cgroup_cpu_dir + "/cpu.cfs_quota_us"); err != nil {
+	if _quota_us, err := utils.ReadString(cgroup_cpu_dir + "/cpu.cfs_quota_us"); err != nil {
 		return 0, err
 	} else {
-		quota_us,err = strconv.ParseFloat(strings.Trim(string(_quota_us), "\n"), 64)
+		quota_us,err = strconv.ParseFloat(_quota_us, 64)
 	}
 
 	if period_us,err = utils.ReadUint64(cgroup_cpu_dir + "/cpu.cfs_period_us");err != nil {
@@ -149,24 +149,57 @@ func CountLimitedCPU() (float64, error) {
 		return CountAllCPU()
 	}
 
-	return quota_us / float64(period_us), nil
+	quotaCpuNum := quota_us / float64(period_us)
+	limitedCpuset := float64(len(GetLimitedCpuset()))
+	if quotaCpuNum > limitedCpuset {
+		return limitedCpuset, nil
+	}
+	return quotaCpuNum, nil
 }
 
+func GetLimitedCpuset() []int64 {
 
-func GetCpuUsage() float64 {
+	cgroup_cpuset_dir := utils.GetCgroupDir("cpuset")
+	cpus := []int64{}
+	cpuset := ""
+	var err error
+	if cpuset, err = utils.ReadString(cgroup_cpuset_dir + "/cpuset.cpus"); err != nil {
+		panic(err)
+	}
+	arr := strings.Split(cpuset, ",")
+	for _,v := range arr {
+		_arr := strings.Split(v, "-")
+		cpuNo1,_ := strconv.ParseInt(_arr[0], 10, 64)
+		if len(_arr) == 1 {
+			cpus = append(cpus, cpuNo1)
+			continue
+		}
+		cpuNo2,_ := strconv.ParseInt(_arr[1], 10, 64)
+		for cpuNo := cpuNo1; cpuNo <= cpuNo2; cpuNo += 1 {
+			cpus = append(cpus, cpuNo)
+		}
+	}
+	return cpus
+}
+
+func calcCpuUsage(preCpuState, nextCpuState *CpuStat) float64 {
 	cpuNum, _ := CountLimitedCPU()
 	cpuAll, _ := CountAllCPU()
+	utils.Debug(preCpuState)
+	utils.Debug(nextCpuState)
+	totalUsage := nextCpuState.Usage - preCpuState.Usage
+	total := nextCpuState.Total - preCpuState.Total
+	return float64(totalUsage)/((float64(total)/cpuAll) * cpuNum)
+}
+
+func GetCpuUsage() float64 {
 	preCpuState, err := getCgroupCpuUsage()
 	if err != nil {
 		panic(err)
 	}
 	time.Sleep(time.Millisecond * 100)
 	nextCpuState, _ := getCgroupCpuUsage()
-	utils.Debug(preCpuState)
-	utils.Debug(nextCpuState)
-	totalUsage := nextCpuState.Usage - preCpuState.Usage
-	total := nextCpuState.Total - preCpuState.Total
-	return float64(totalUsage)/((float64(total)/cpuAll) * cpuNum)
+	return calcCpuUsage(preCpuState, nextCpuState)
 }
 
 func GetCpuUsageNoDelay() float64 {
@@ -177,17 +210,11 @@ func GetCpuUsageNoDelay() float64 {
 			panic(err)
 		}
 		time.Sleep(time.Millisecond * 500)
-
 	}
-	cpuNum, _ := CountLimitedCPU()
-	cpuAll, _ := CountAllCPU()
 
 	preCpuState := lastCpuState
 	nextCpuState, _ := getCgroupCpuUsage()
+
 	lastCpuState = nextCpuState
-	utils.Debug(preCpuState)
-	utils.Debug(nextCpuState)
-	totalUsage := nextCpuState.Usage - preCpuState.Usage
-	total := nextCpuState.Total - preCpuState.Total
-	return float64(totalUsage)/((float64(total)/cpuAll) * cpuNum)
+	return calcCpuUsage(preCpuState, nextCpuState)
 }

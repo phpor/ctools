@@ -10,14 +10,21 @@ import (
 )
 
 
+func ReadString(filename string) (string, error) {
+	if content, err := ioutil.ReadFile(filename); err != nil {
+		return "", err
+	} else {
+		return strings.Trim(string(content), "\n"), nil
+	}
+}
+
 func ReadUint64(filename string) (uint64, error) {
-	val, err := ioutil.ReadFile(filename)
+	val, err := ReadString(filename)
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(strings.Trim(string(val), "\n"), 10, 64)
+	return strconv.ParseUint(val, 10, 64)
 }
-
 
 
 func PathExists(path string) (bool, error) {

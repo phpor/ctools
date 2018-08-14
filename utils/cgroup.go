@@ -38,7 +38,7 @@ func GetCgroupDir(subtype string) string{
 		arrType := strings.Split(arr[1], ",")
 		for _,v := range arrType {
 			if v == subtype {
-				tmp_dir = cgroup_dir + arr[2]
+				tmp_dir = cgroup_dir + "/" + arr[1] + arr[2]  // 不知道这样写是不是对
 				return false, nil
 			}
 		}

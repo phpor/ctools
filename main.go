@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/phpor/ctools/mem"
 	"github.com/phpor/ctools/utils"
+	"strings"
 )
 func main() {
 	spew.Dump(os.Args)
@@ -22,6 +23,7 @@ func main() {
 }
 
 func mainPlay()  {
+	fmt.Println(cpu.GetLimitedCpuset())
 	fmt.Printf("CpuUsage: %f%%\n", cpu.GetCpuUsage()*100)
 	memstat,err := mem.Usage()
 	if err != nil {
@@ -34,6 +36,13 @@ func mainPlay()  {
 }
 
 func mainUI() {
+
+	cpuset := cpu.GetLimitedCpuset()
+	cpus := []string{}
+	for _,v := range cpuset {
+		cpus = append(cpus, fmt.Sprintf("%d", v))
+	}
+
 	err := ui.Init()
 	if err != nil {
 		panic(err)
@@ -41,11 +50,16 @@ func mainUI() {
 	defer ui.Close()
 
 
+	cs := ui.NewBlock()
+	cs.X = 40
+	cs.Y = 1
+	cs.YOffset = 8
+	cs.Label = strings.Join(cpus, ",")
 
-	g := ui.NewGauge()
-	g.X = 40
-	g.Y = 1
-	g.Label = "Gauge CPU"
+	c := ui.NewGauge()
+	c.X = 40
+	c.Y = 1
+	c.Label = "Gauge CPU"
 
 
 	m := ui.NewGauge()
@@ -55,7 +69,7 @@ func mainUI() {
 	m.Label = "Gauge Mem"
 
 	var update = func() {
-		g.Percent = int(cpu.GetCpuUsageNoDelay() * 100)
+		c.Percent = int(cpu.GetCpuUsageNoDelay() * 100)
 		memstat,_ := mem.Usage()
 		percent := float64(memstat.Used) / float64(memstat.Total) * 100
 		m.Percent = int(percent)
@@ -63,17 +77,16 @@ func mainUI() {
 		memTotal, memTotalUnit := utils.FormatBytes(memstat.Total)
 		m.Label = fmt.Sprintf("Mem: %3.1f%%  %.1f %s/%.1f %s", percent, memUsed, memUsedUnit, memTotal, memTotalUnit)
 
+		ui.Render(cs, c,m)
 	}
 
-	update()
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		for range ticker.C {
 			update()
-			ui.Render(g,m)
 		}
 	}()
-	ui.Render(g,m)
+	update()
 	// quits
 	ui.On("q", "<C-c>", func(e ui.Event) {
 		ui.StopLoop()

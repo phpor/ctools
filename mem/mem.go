@@ -18,6 +18,7 @@ type sysMemStat struct {
 	Total     uint64
 	Free      uint64
 	Cached    uint64
+	Buffers   uint64
 	Available uint64
 }
 
@@ -39,6 +40,8 @@ func Usage() (*MemStat, error) {
 		mem_total = sys_memstat.Total
 		mem_free = sys_memstat.Free
 		mem_available = sys_memstat.Available
+		mem_cached = sys_memstat.Cached
+		mem_used = mem_total - mem_free
 	} else {
 		err := utils.ForEachFile(cgroup_memory_dir + "/memory.stat", func(line string) (bool, error) {
 			arr := strings.Split(line, " ")
@@ -78,6 +81,12 @@ func GetSystemMemStat() (*sysMemStat, error) {
 		case "MemAvailable:":
 			val,_ := strconv.ParseUint(arr[1], 10, 64)
 			memstat.Available = val * 1000
+		case "Buffers:":
+			val,_ := strconv.ParseUint(arr[1], 10, 64)
+			memstat.Buffers = val * 1000
+		case "Cached:":
+			val,_ := strconv.ParseUint(arr[1], 10, 64)
+			memstat.Cached = val * 1000
 
 		}
 		return true, nil

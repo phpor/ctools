@@ -6,7 +6,6 @@ import "strings"
 
 
 const  UNLIMITTED  = 9223372036854771712
-var cgroup_dir = "/sys/fs/cgroup"
 
 
 func GetCgroupDir(subtype string) string{
@@ -20,8 +19,11 @@ func GetCgroupDir(subtype string) string{
 		arr2 := strings.Split(arr[3], ",")
 		for _,v := range arr2 {
 			if v == subtype {
-				cgroupDir = arr[1]
-				return false, nil
+				// 可能出现一个subsystem的mount条目有多个的情况，而有的目录是不存在的
+				if ok, _ := PathExists(arr[1]); ok {
+					cgroupDir = arr[1]
+					return false, nil
+				}
 			}
 		}
 		return true, nil
@@ -31,24 +33,27 @@ func GetCgroupDir(subtype string) string{
 	}
 
 	cgroup := "/proc/self/cgroup"
-	dir := cgroupDir
 	tmp_dir := ""
 	ForEachFile(cgroup, func(line string) (bool, error) {
 		arr := strings.Split(line, ":")
 		arrType := strings.Split(arr[1], ",")
 		for _,v := range arrType {
 			if v == subtype {
-				tmp_dir = cgroup_dir + "/" + arr[1] + arr[2]  // 不知道这样写是不是对
+				tmp_dir = cgroupDir + "/" + arr[2]  // 不知道这样写是不是对
 				return false, nil
 			}
 		}
 		return true, nil
 	})
-	if ok, _ := PathExists(tmp_dir); ok {
-		return tmp_dir
+	if tmp_dir != "" {
+		if ok, _ := PathExists(tmp_dir); ok {
+			return tmp_dir
+		}
 	}
-	if ok, _ := PathExists(dir); ok {
-		return dir
+	if cgroupDir != "" {
+		if ok, _ := PathExists(cgroupDir); ok {
+			return cgroupDir
+		}
 	}
 
 
